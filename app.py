@@ -1,4 +1,4 @@
-from flask import Blueprint
+from flask import Blueprint, Flask, request, jsonify
 main = Blueprint('main', __name__)
  
 import json
@@ -12,10 +12,14 @@ from flask import Flask, request
  
 @main.route("/<int:user_id>/ratings/top/<int:count>", methods=["GET"])
 def top_ratings(user_id, count):
-    logger.debug("User %s TOP ratings requested", user_id)
-    top_ratings = recommendation_engine.get_top_ratings(user_id,count)
-    return json.dumps(top_ratings)
- 
+    try:
+        logger.debug("User %s TOP ratings requested", user_id)
+        top_ratings = recommendation_engine.get_top_ratings(user_id, count)
+        return json.dumps(top_ratings)
+    except Exception as e:
+        logger.error("Error getting top ratings for user %s: %s", user_id, str(e))
+        return jsonify({"error": str(e)}), 500
+
 @main.route("/<int:user_id>/ratings/<int:movie_id>", methods=["GET"])
 def movie_ratings(user_id, movie_id):
     logger.debug("User %s rating requested for movie %s", user_id, movie_id)
@@ -36,11 +40,11 @@ def add_ratings(user_id):
     return json.dumps(ratings)
  
  
-def create_app(spark_context, dataset_path):
-    global recommendation_engine 
-
-    recommendation_engine = RecommendationEngine(spark_context, dataset_path)    
+def create_app(spark_context, dataset_path, db_url):
+    global recommendation_engine
+    recommendation_engine = RecommendationEngine(spark_context, dataset_path, db_url)
     
     app = Flask(__name__)
     app.register_blueprint(main)
-    return app 
+    
+    return app
